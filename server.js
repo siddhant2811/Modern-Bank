@@ -14,7 +14,7 @@ const MONGO_URI = 'mongodb+srv://spchalke2811_db_user:SPChalke2811@cluster0.8har
 const DB_NAME = 'modernbank';
 
 let db;
-const MONGO_URI = 'mongodb+srv://spchalke2811_db_user:SPChalke2811@cluster0.8hariap.mongodb.net/?appName=Cluster0&tls=true&tlsAllowInvalidCertificates=true';
+
 // ── Helper ──
 const users = () => db.collection('users');
 const txs   = () => db.collection('transactions');
