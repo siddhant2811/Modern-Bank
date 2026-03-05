@@ -15,8 +15,12 @@ const DB_NAME = 'modernbank';
 
 let db;
 MongoClient.connect(MONGO_URI, {
+  tls: true,
   tlsAllowInvalidCertificates: true,
-  tlsAllowInvalidHostnames: true
+  tlsAllowInvalidHostnames: true,
+  ssl: true,
+  sslValidate: false,
+  checkServerIdentity: () => undefined,
 })
   .then(client => {
     db = client.db(DB_NAME);
