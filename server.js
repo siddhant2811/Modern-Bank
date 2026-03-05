@@ -14,23 +14,7 @@ const MONGO_URI = 'mongodb+srv://spchalke2811_db_user:SPChalke2811@cluster0.8har
 const DB_NAME = 'modernbank';
 
 let db;
-MongoClient.connect(MONGO_URI, {
-  tls: true,
-  tlsAllowInvalidCertificates: true,
-  tlsAllowInvalidHostnames: true,
-  ssl: true,
-  sslValidate: false,
-  checkServerIdentity: () => undefined,
-})
-  .then(client => {
-    db = client.db(DB_NAME);
-    console.log('✅ Connected to MongoDB Atlas');
-  })
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err.message);
-    process.exit(1);
-  });
-
+const MONGO_URI = 'mongodb+srv://spchalke2811_db_user:SPChalke2811@cluster0.8hariap.mongodb.net/?appName=Cluster0&tls=true&tlsAllowInvalidCertificates=true';
 // ── Helper ──
 const users = () => db.collection('users');
 const txs   = () => db.collection('transactions');
