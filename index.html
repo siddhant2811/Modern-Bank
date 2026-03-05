@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ModernBank | MongoDB Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --ink: #0a0a0f;
+  --ink2: #14141f;
+  --surface: #1a1a2e;
+  --surface2: #16213e;
+  --accent: #00d4ff;
+  --accent2: #7b2ff7;
+  --accent3: #ff6b35;
+  --success: #00e676;
+  --danger: #ff1744;
+  --text: #e8e8f0;
+  --muted: #8888a8;
+  --border: rgba(255,255,255,0.07);
+  --card: rgba(255,255,255,0.04);
+  --glow: rgba(0,212,255,0.15);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--ink);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);
+  background-size:60px 60px;
+  pointer-events:none;z-index:0;
+}
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:0.4;
+}
+
+/* ── LOADING ── */
+#mb-loading{
+  position:fixed;inset:0;
+  background:var(--ink);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:9999;
+  transition:opacity .6s ease, visibility .6s;
+}
+#mb-loading.hide{opacity:0;visibility:hidden;}
+.load-logo{
+  font-family:'Syne',sans-serif;
+  font-size:2.5rem;font-weight:800;
+  letter-spacing:-1px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:2rem;
+}
+.load-bar-wrap{width:220px;height:2px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;}
+.load-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));animation:loadAnim 2s ease-out forwards;}
+@keyframes loadAnim{to{width:100%;}}
+.load-dots{display:flex;gap:6px;margin-top:1.5rem;}
+.load-dots span{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:dotPop 1.2s ease-in-out infinite;}
+.load-dots span:nth-child(2){animation-delay:.2s;background:var(--accent2);}
+.load-dots span:nth-child(3){animation-delay:.4s;background:var(--accent3);}
+@keyframes dotPop{0%,80%,100%{transform:scale(0.4);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+/* ── NAVBAR ── */
+.navbar{
+  position:sticky;top:0;z-index:500;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.9rem 4%;
+  background:rgba(10,10,15,0.8);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+}
+.nb-logo{
+  font-family:'Syne',sans-serif;
+  font-size:1.3rem;font-weight:800;
+  letter-spacing:-0.5px;
+  cursor:pointer;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.nb-logo span{color:var(--accent3);-webkit-text-fill-color:var(--accent3);}
+.nb-links{display:flex;gap:1.8rem;list-style:none;}
+.nb-links a{
+  color:var(--muted);text-decoration:none;
+  font-size:.9rem;font-weight:500;letter-spacing:.3px;
+  transition:color .2s;position:relative;padding-bottom:4px;cursor:pointer;
+}
+.nb-links a::after{
+  content:'';position:absolute;bottom:0;left:0;
+  width:0;height:1px;background:var(--accent);
+  transition:width .25s;
+}
+.nb-links a:hover,.nb-links a.active{color:var(--text);}
+.nb-links a.active::after,.nb-links a:hover::after{width:100%;}
+.nb-auth{display:flex;gap:.7rem;align-items:center;}
+.nb-user{display:none;align-items:center;gap:.8rem;}
+.nb-user-name{font-size:.9rem;color:var(--accent);}
+.btn{
+  font-family:'DM Sans',sans-serif;
+  padding:.5rem 1.2rem;border-radius:6px;
+  font-size:.85rem;font-weight:500;cursor:pointer;
+  transition:all .2s;border:none;
+}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+.btn-accent{background:var(--accent);color:var(--ink);font-weight:700;}
+.btn-accent:hover{background:#00bde0;transform:translateY(-1px);}
+.btn-logout{background:transparent;border:1px solid rgba(255,23,68,.3);color:var(--danger);padding:.4rem 1rem;border-radius:6px;font-size:.8rem;cursor:pointer;transition:all .2s;}
+.btn-logout:hover{background:rgba(255,23,68,.1);}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;top:80px;right:24px;z-index:9000;
+  padding:.7rem 1.4rem;border-radius:8px;
+  font-size:.85rem;font-weight:500;
+  transform:translateX(120%);transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.1);
+}
+.toast.show{transform:translateX(0);}
+.toast.success{background:rgba(0,230,118,.12);color:var(--success);}
+.toast.error{background:rgba(255,23,68,.12);color:var(--danger);}
+
+/* ── MODAL ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(8px);
+  z-index:2000;align-items:center;justify-content:center;
+}
+.modal-overlay.open{display:flex;}
+.modal-box{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:2rem;
+  width:90%;max-width:400px;
+  position:relative;
+  animation:modalIn .3s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes modalIn{from{transform:translateY(30px) scale(.95);opacity:0}to{transform:none;opacity:1}}
+.modal-close{
+  position:absolute;top:1rem;right:1rem;
+  background:transparent;border:none;color:var(--muted);
+  font-size:1.3rem;cursor:pointer;transition:color .2s;
+}
+.modal-close:hover{color:var(--text);}
+.modal-box h2{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:1.5rem;}
+.modal-footer-link{text-align:center;margin-top:1rem;font-size:.85rem;color:var(--muted);}
+.modal-footer-link a{color:var(--accent);cursor:pointer;text-decoration:none;}
+.modal-footer-link a:hover{text-decoration:underline;}
+
+/* ── FORM ── */
+.field{margin-bottom:1.1rem;}
+.field label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:.35rem;letter-spacing:.3px;text-transform:uppercase;}
+.field input{
+  width:100%;background:rgba(255,255,255,.04);
+  border:1px solid var(--border);border-radius:8px;
+  padding:.65rem .9rem;color:var(--text);
+  font-family:'DM Sans',sans-serif;font-size:.95rem;
+  transition:border-color .2s;
+}
+.field input:focus{outline:none;border-color:var(--accent);}
+.field input::placeholder{color:rgba(255,255,255,.15);}
+.field-error{color:var(--danger);font-size:.8rem;margin-top:.3rem;display:none;}
+.field-error.show{display:block;}
+.form-submit{
+  width:100%;padding:.75rem;border-radius:8px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  border:none;color:white;font-weight:700;font-size:.95rem;
+  cursor:pointer;transition:opacity .2s, transform .2s;
+  font-family:'Syne',sans-serif;letter-spacing:.3px;
+  margin-top:.5rem;
+}
+.form-submit:hover{opacity:.9;transform:translateY(-1px);}
+.form-submit:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+/* ── PAGE SYSTEM ── */
+.page{display:none;animation:pageIn .35s ease;padding:2.5rem 4%;}
+.page.active{display:block;}
+@keyframes pageIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* ── HOME PAGE ── */
+.hero{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:4rem;align-items:center;
+  min-height:calc(100vh - 65px);
+  padding:0 0 4rem;
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:.4rem;
+  background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.15);
+  padding:.3rem .9rem;border-radius:4px;
+  font-size:.8rem;color:var(--accent);letter-spacing:.5px;
+  text-transform:uppercase;margin-bottom:1.5rem;
+}
+.hero-title{
+  font-family:'Syne',sans-serif;
+  font-size:clamp(2.5rem,5vw,4rem);
+  font-weight:800;line-height:1.05;
+  letter-spacing:-1.5px;
+  margin-bottom:1.2rem;
+}
+.hero-title .grad{
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hero-desc{color:var(--muted);line-height:1.7;margin-bottom:2.5rem;max-width:420px;}
+.hero-cta{display:flex;gap:1rem;}
+.hero-stats{
+  display:flex;gap:2.5rem;margin-top:3rem;
+  padding-top:2rem;border-top:1px solid var(--border);
+}
+.hstat-n{
+  font-family:'Syne',sans-serif;
+  font-size:1.8rem;font-weight:800;
+  background:linear-gradient(135deg,var(--text),var(--muted));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hstat-l{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:.1rem;}
+
+/* ── CARD VISUAL ── */
+.card-scene{position:relative;height:360px;width:100%;}
+.bank-card{
+  position:absolute;
+  width:320px;height:185px;
+  border-radius:16px;padding:1.4rem;
+  border:1px solid rgba(255,255,255,.1);
+  transition:transform .3s ease;
+}
+.bank-card-1{background:linear-gradient(135deg,#0f3460,#16213e);top:0;left:0;transform:rotate(-6deg);animation:cardFloat 4s ease-in-out infinite;}
+.bank-card-2{background:linear-gradient(135deg,#1a1a3e,var(--accent2));top:40px;left:40px;transform:rotate(-1deg);animation:cardFloat 4s ease-in-out infinite .5s;}
+.bank-card-3{background:linear-gradient(135deg,#0d0d20,#2d1b69);top:80px;left:80px;transform:rotate(3deg);animation:cardFloat 4s ease-in-out infinite 1s;border:1px solid rgba(0,212,255,.2);}
+@keyframes cardFloat{0%,100%{margin-top:0}50%{margin-top:-12px}}
+.card-chip{width:42px;height:32px;border-radius:6px;background:linear-gradient(135deg,#c8a84b,#f5d370);margin-bottom:1.2rem;display:grid;grid-template-columns:1fr 1fr;gap:2px;overflow:hidden;}
+.card-chip div{background:rgba(0,0,0,.2);}
+.card-num{font-size:1rem;letter-spacing:3px;margin-bottom:1rem;font-family:'Syne',sans-serif;}
+.card-bottom{display:flex;justify-content:space-between;align-items:flex-end;}
+.card-holder{font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,.7);}
+.card-brand{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;color:rgba(255,255,255,.9);}
+
+/* ── FEATURES ── */
+.section{padding:4rem 0;}
+.section-head{display:flex;align-items:baseline;gap:.8rem;margin-bottom:2.5rem;}
+.section-head h2{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;letter-spacing:-1px;}
+.section-head .line{flex:1;height:1px;background:var(--border);}
+.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;}
+.feat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;transition:border-color .2s, transform .2s, background .2s;cursor:default;}
+.feat-card:hover{border-color:rgba(0,212,255,.25);background:rgba(0,212,255,.04);transform:translateY(-4px);}
+.feat-icon{width:44px;height:44px;border-radius:10px;background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.12);display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:1rem;}
+.feat-card h3{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.4rem;}
+.feat-card p{font-size:.85rem;color:var(--muted);line-height:1.6;}
+
+/* ── DASHBOARD ── */
+.dash-welcome{margin-bottom:2rem;}
+.dash-welcome h1{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;letter-spacing:-1px;}
+.dash-welcome p{color:var(--muted);font-size:.9rem;margin-top:.3rem;}
+.dash-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:1.5rem;margin-bottom:2rem;}
+.dash-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;}
+.dash-card-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:.5rem;}
+.dash-balance{font-family:'Syne',sans-serif;font-size:2.4rem;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:.3rem 0 1.2rem;}
+.dash-actions{display:flex;gap:.6rem;flex-wrap:wrap;}
+.dash-act-btn{padding:.45rem 1rem;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);border-radius:7px;font-size:.8rem;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;}
+.dash-act-btn:hover{background:rgba(0,212,255,.1);border-color:rgba(0,212,255,.3);color:var(--accent);}
+.dash-meta{font-size:.85rem;color:var(--muted);line-height:1.8;}
+.dash-meta strong{color:var(--text);}
+.quick-btns{display:flex;flex-direction:column;gap:.6rem;}
+.q-btn{display:flex;align-items:center;gap:.6rem;padding:.6rem .9rem;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;cursor:pointer;font-size:.85rem;transition:all .2s;font-family:'DM Sans',sans-serif;}
+.q-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.05);}
+
+/* ── TRANSACTIONS ── */
+.tx-list-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.tx-list-head{padding:1.2rem 1.5rem;border-bottom:1px solid var(--border);font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;}
+.tx-item{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border);transition:background .15s;}
+.tx-item:last-child{border-bottom:none;}
+.tx-item:hover{background:rgba(255,255,255,.02);}
+.tx-left{display:flex;align-items:center;gap:.9rem;}
+.tx-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;}
+.tx-icon.cr{background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.2);}
+.tx-icon.dr{background:rgba(255,23,68,.1);border:1px solid rgba(255,23,68,.2);}
+.tx-desc{font-size:.9rem;font-weight:500;}
+.tx-date{font-size:.75rem;color:var(--muted);margin-top:.1rem;}
+.tx-amt{font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;}
+.tx-amt.cr{color:var(--success);}
+.tx-amt.dr{color:var(--danger);}
+.tx-empty{padding:3rem;text-align:center;color:var(--muted);font-size:.9rem;}
+
+/* ── FORM PAGES ── */
+.form-wrap{max-width:480px;margin:0 auto;}
+.form-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:2rem;}
+.form-card h2{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:.4rem;}
+.form-card .sub{color:var(--muted);font-size:.85rem;margin-bottom:1.5rem;}
+.balance-pill{display:flex;justify-content:space-between;align-items:center;background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.12);border-radius:10px;padding:.9rem 1.1rem;margin-bottom:1.5rem;}
+.balance-pill .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);}
+.balance-pill .val{font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);}
+.form-btns{display:flex;gap:.8rem;margin-top:1.5rem;}
+.btn-cancel{flex:1;padding:.7rem;border-radius:8px;background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:.9rem;transition:all .2s;font-family:'DM Sans',sans-serif;}
+.btn-cancel:hover{border-color:var(--muted);color:var(--text);}
+.btn-submit{flex:2;padding:.7rem;border-radius:8px;background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:white;font-weight:700;cursor:pointer;font-size:.9rem;font-family:'Syne',sans-serif;transition:opacity .2s, transform .2s;}
+.btn-submit:hover{opacity:.9;transform:translateY(-1px);}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+/* ── ACCOUNT PAGE ── */
+.account-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:2rem;max-width:500px;margin:0 auto;}
+.account-card h2{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;margin-bottom:1.5rem;}
+.acc-row{display:flex;justify-content:space-between;align-items:center;padding:.9rem 0;border-bottom:1px solid var(--border);}
+.acc-row:last-of-type{border-bottom:none;}
+.acc-key{font-size:.8rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);}
+.acc-val{font-size:.9rem;font-weight:500;}
+.acc-badge{background:rgba(0,230,118,.1);color:var(--success);padding:.2rem .7rem;border-radius:4px;font-size:.8rem;border:1px solid rgba(0,230,118,.2);}
+
+/* ── DB BADGE ── */
+.db-badge{
+  display:inline-flex;align-items:center;gap:.4rem;
+  background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.15);
+  padding:.25rem .7rem;border-radius:4px;
+  font-size:.72rem;color:var(--accent);letter-spacing:.3px;
+  text-transform:uppercase;margin-left:.5rem;vertical-align:middle;
+}
+.db-dot{width:6px;height:6px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── FOOTER ── */
+.footer{border-top:1px solid var(--border);padding:2.5rem 4% 1.5rem;background:rgba(10,10,15,.5);}
+.footer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2rem;margin-bottom:2rem;}
+.footer-logo{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.5rem;}
+.footer-tag{font-size:.8rem;color:var(--muted);}
+.footer-col h5{font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:.8rem;}
+.footer-col ul{list-style:none;}
+.footer-col ul li{margin-bottom:.4rem;}
+.footer-col ul li a{color:rgba(255,255,255,.5);text-decoration:none;font-size:.85rem;transition:color .2s;cursor:pointer;}
+.footer-col ul li a:hover{color:var(--text);}
+.footer-bottom{text-align:center;font-size:.8rem;color:var(--muted);padding-top:1.5rem;border-top:1px solid var(--border);}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){.dash-grid{grid-template-columns:1fr 1fr;}.hero{grid-template-columns:1fr;min-height:auto;}.card-scene{display:none;}}
+@media(max-width:600px){.dash-grid{grid-template-columns:1fr;}.nb-links{display:none;}.hero-stats{gap:1.2rem;}}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="mb-loading">
+  <div class="load-logo">Modern<span style="opacity:.5">Bank</span></div>
+  <div class="load-bar-wrap"><div class="load-bar"></div></div>
+  <div class="load-dots"><span></span><span></span><span></span></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Login Modal -->
+<div class="modal-overlay" id="modalLogin">
+  <div class="modal-box">
+    <button class="modal-close" onclick="MB.closeModals()">✕</button>
+    <h2>Welcome back</h2>
+    <div class="field"><label>Email</label><input type="email" id="liEmail" placeholder="you@email.com"/></div>
+    <div class="field"><label>Password</label><input type="password" id="liPass" placeholder="••••••••"/></div>
+    <div class="field-error" id="liErr">Invalid credentials. Please try again.</div>
+    <button class="form-submit" id="liBtn" onclick="MB.login()">Sign In</button>
+    <div class="modal-footer-link">No account? <a onclick="MB.openSignup()">Create one →</a></div>
+  </div>
+</div>
+
+<!-- Signup Modal -->
+<div class="modal-overlay" id="modalSignup">
+  <div class="modal-box">
+    <button class="modal-close" onclick="MB.closeModals()">✕</button>
+    <h2>Open an account</h2>
+    <div class="field"><label>Full Name</label><input type="text" id="suName" placeholder="Jane Doe"/></div>
+    <div class="field"><label>Email</label><input type="email" id="suEmail" placeholder="you@email.com"/></div>
+    <div class="field"><label>Password</label><input type="password" id="suPass" placeholder="Min 6 chars"/></div>
+    <div class="field"><label>Confirm Password</label><input type="password" id="suConf" placeholder="Repeat password"/></div>
+    <div class="field-error" id="suErr"></div>
+    <button class="form-submit" id="suBtn" onclick="MB.signup()">Create Account</button>
+    <div class="modal-footer-link">Already a member? <a onclick="MB.openLogin()">Sign in →</a></div>
+  </div>
+</div>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="nb-logo" onclick="MB.go('home')">Modern<span>Bank</span>
+    <span class="db-badge"><span class="db-dot"></span>MongoDB</span>
+  </div>
+  <ul class="nb-links" id="nbLinks">
+    <li><a onclick="MB.go('home')" id="nl-home" class="active">Home</a></li>
+    <li><a onclick="MB.go('dashboard')" id="nl-dashboard" style="display:none">Dashboard</a></li>
+    <li><a onclick="MB.go('account')" id="nl-account" style="display:none">Account</a></li>
+    <li><a onclick="MB.go('transactions')" id="nl-transactions" style="display:none">History</a></li>
+  </ul>
+  <div class="nb-auth" id="nbAuth">
+    <button class="btn btn-ghost" onclick="MB.openLogin()">Sign In</button>
+    <button class="btn btn-accent" onclick="MB.openSignup()">Open Account</button>
+  </div>
+  <div class="nb-user" id="nbUser">
+    <span class="nb-user-name" id="nbUserName"></span>
+    <button class="btn-logout" onclick="MB.logout()">Log out</button>
+  </div>
+</nav>
+
+<!-- Pages -->
+<div id="app">
+
+<!-- HOME -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <div>
+      <div class="hero-eyebrow">⚡ Next-generation banking</div>
+      <h1 class="hero-title">Banking built<br/>for the <span class="grad">future</span></h1>
+      <p class="hero-desc">Manage your money with clarity. Instant transfers, smart insights, and enterprise-grade security — all powered by MongoDB Atlas.</p>
+      <div class="hero-cta">
+        <button class="btn btn-accent" onclick="MB.openSignup()">Get started →</button>
+        <button class="btn btn-ghost" onclick="MB.openLogin()">Sign in</button>
+      </div>
+      <div class="hero-stats">
+        <div><div class="hstat-n" id="hs1">0M+</div><div class="hstat-l">Customers</div></div>
+        <div><div class="hstat-n" id="hs2">$0B+</div><div class="hstat-l">Transactions</div></div>
+        <div><div class="hstat-n" id="hs3">0+</div><div class="hstat-l">Countries</div></div>
+      </div>
+    </div>
+    <div class="card-scene">
+      <div class="bank-card bank-card-1">
+        <div class="card-chip"><div></div><div></div><div></div><div></div></div>
+        <div class="card-num">•••• •••• •••• 4582</div>
+        <div class="card-bottom"><span class="card-holder">John Doe</span><span class="card-brand">VISA</span></div>
+      </div>
+      <div class="bank-card bank-card-2">
+        <div class="card-chip"><div></div><div></div><div></div><div></div></div>
+        <div class="card-num">•••• •••• •••• 7890</div>
+        <div class="card-bottom"><span class="card-holder">Jane Smith</span><span class="card-brand">MASTER</span></div>
+      </div>
+      <div class="bank-card bank-card-3">
+        <div class="card-chip"><div></div><div></div><div></div><div></div></div>
+        <div class="card-num">•••• •••• •••• 1234</div>
+        <div class="card-bottom"><span class="card-holder">Alex Kim</span><span class="card-brand">AMEX</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-head"><h2>Why ModernBank?</h2><div class="line"></div></div>
+    <div class="grid-3">
+      <div class="feat-card"><div class="feat-icon">⚡</div><h3>Instant Transfers</h3><p>Move money in seconds to any account, anywhere in the world.</p></div>
+      <div class="feat-card"><div class="feat-icon">🔐</div><h3>Zero-Trust Security</h3><p>Military-grade encryption and real-time fraud monitoring protect every transaction.</p></div>
+      <div class="feat-card"><div class="feat-icon">📊</div><h3>Smart Insights</h3><p>AI-powered analytics surface patterns and opportunities in your spending.</p></div>
+      <div class="feat-card"><div class="feat-icon">🍃</div><h3>MongoDB Powered</h3><p>All your data is stored securely in MongoDB Atlas — persistent, fast, and scalable.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page" id="page-dashboard">
+  <div class="dash-welcome">
+    <h1>Good day, <span id="dWelcome"></span> 👋</h1>
+    <p>Here's your financial overview</p>
+  </div>
+  <div class="dash-grid">
+    <div class="dash-card">
+      <div class="dash-card-label">Total Balance</div>
+      <div class="dash-balance" id="dBalance">$0.00</div>
+      <div class="dash-actions">
+        <button class="dash-act-btn" onclick="MB.go('deposit')">+ Deposit</button>
+        <button class="dash-act-btn" onclick="MB.go('withdraw')">− Withdraw</button>
+        <button class="dash-act-btn" onclick="MB.go('transfer')">↗ Transfer</button>
+      </div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Account</div>
+      <div class="dash-meta" id="dMeta" style="margin-top:.5rem"></div>
+    </div>
+    <div class="dash-card" style="display:flex;flex-direction:column;">
+      <div class="dash-card-label" style="margin-bottom:.7rem">Quick Actions</div>
+      <div class="quick-btns">
+        <button class="q-btn" onclick="MB.go('deposit')"><span>💰</span>Deposit funds</button>
+        <button class="q-btn" onclick="MB.go('withdraw')"><span>🏧</span>Withdraw cash</button>
+        <button class="q-btn" onclick="MB.go('transfer')"><span>↗️</span>Send money</button>
+      </div>
+    </div>
+  </div>
+  <div class="tx-list-wrap">
+    <div class="tx-list-head">Recent Transactions</div>
+    <div id="dTxList"><div class="tx-empty">Loading…</div></div>
+  </div>
+</div>
+
+<!-- ACCOUNT -->
+<div class="page" id="page-account">
+  <div class="account-card">
+    <h2>Account Details</h2>
+    <div class="acc-row"><span class="acc-key">Full Name</span><span class="acc-val" id="acName"></span></div>
+    <div class="acc-row"><span class="acc-key">Email</span><span class="acc-val" id="acEmail"></span></div>
+    <div class="acc-row"><span class="acc-key">Account Number</span><span class="acc-val" id="acNum"></span></div>
+    <div class="acc-row"><span class="acc-key">IFSC Code</span><span class="acc-val" id="acIfsc"></span></div>
+    <div class="acc-row"><span class="acc-key">Balance</span><span class="acc-val" id="acBal"></span></div>
+    <div class="acc-row"><span class="acc-key">Status</span><span class="acc-badge">Active</span></div>
+    <div class="acc-row"><span class="acc-key">Member Since</span><span class="acc-val" id="acJoined"></span></div>
+    <div style="margin-top:1.5rem">
+      <button class="btn-submit" style="width:100%" onclick="MB.go('dashboard')">← Back to Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEPOSIT -->
+<div class="page" id="page-deposit">
+  <div class="form-wrap">
+    <div class="form-card">
+      <h2>Deposit Funds</h2>
+      <p class="sub">Add money to your ModernBank account</p>
+      <div class="balance-pill"><span class="label">Available Balance</span><span class="val" id="depBal">$0.00</span></div>
+      <div class="field"><label>Amount ($)</label><input type="number" id="depAmt" min="1" step="0.01" placeholder="0.00"/></div>
+      <div class="field"><label>Description (optional)</label><input type="text" id="depDesc" placeholder="e.g. Salary"/></div>
+      <div class="form-btns">
+        <button class="btn-cancel" onclick="MB.go('dashboard')">Cancel</button>
+        <button class="btn-submit" id="depBtn" onclick="MB.deposit()">Confirm Deposit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WITHDRAW -->
+<div class="page" id="page-withdraw">
+  <div class="form-wrap">
+    <div class="form-card">
+      <h2>Withdraw Funds</h2>
+      <p class="sub">Withdraw from your ModernBank account</p>
+      <div class="balance-pill"><span class="label">Available Balance</span><span class="val" id="withBal">$0.00</span></div>
+      <div class="field"><label>Amount ($)</label><input type="number" id="withAmt" min="1" step="0.01" placeholder="0.00"/></div>
+      <div class="field"><label>Description (optional)</label><input type="text" id="withDesc" placeholder="e.g. ATM"/></div>
+      <div class="form-btns">
+        <button class="btn-cancel" onclick="MB.go('dashboard')">Cancel</button>
+        <button class="btn-submit" id="withBtn" onclick="MB.withdraw()">Confirm Withdrawal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TRANSFER -->
+<div class="page" id="page-transfer">
+  <div class="form-wrap">
+    <div class="form-card">
+      <h2>Send Money</h2>
+      <p class="sub">Transfer to another ModernBank account</p>
+      <div class="balance-pill"><span class="label">Available Balance</span><span class="val" id="tranBal">$0.00</span></div>
+      <div class="field"><label>To Account Number</label><input type="text" id="tranTo" placeholder="ACC123456"/></div>
+      <div class="field"><label>Amount ($)</label><input type="number" id="tranAmt" min="1" step="0.01" placeholder="0.00"/></div>
+      <div class="field"><label>Description (optional)</label><input type="text" id="tranDesc" placeholder="e.g. Rent"/></div>
+      <div class="form-btns">
+        <button class="btn-cancel" onclick="MB.go('dashboard')">Cancel</button>
+        <button class="btn-submit" id="tranBtn" onclick="MB.transfer()">Confirm Transfer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TRANSACTIONS -->
+<div class="page" id="page-transactions">
+  <div style="margin-bottom:1.5rem">
+    <h1 style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;letter-spacing:-1px">Transaction History</h1>
+    <p style="color:var(--muted);font-size:.9rem;margin-top:.3rem">All your account activity — stored in MongoDB Atlas</p>
+  </div>
+  <div class="tx-list-wrap">
+    <div id="txAllList"><div class="tx-empty">Loading…</div></div>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<footer class="footer">
+  <div class="footer-grid">
+    <div><div class="footer-logo">ModernBank</div><div class="footer-tag">Banking for the future. Powered by MongoDB Atlas.</div></div>
+    <div class="footer-col"><h5>Navigate</h5><ul>
+      <li><a onclick="MB.go('home')">Home</a></li>
+      <li><a onclick="MB.go('dashboard')">Dashboard</a></li>
+      <li><a onclick="MB.go('account')">Account</a></li>
+    </ul></div>
+    <div class="footer-col"><h5>Support</h5><ul>
+      <li><a href="#">Help Center</a></li>
+      <li><a href="#">Contact Us</a></li>
+      <li><a href="#">Privacy Policy</a></li>
+    </ul></div>
+    <div class="footer-col"><h5>Follow</h5><ul>
+      <li><a href="#">Twitter / X</a></li>
+      <li><a href="#">LinkedIn</a></li>
+      <li><a href="#">Instagram</a></li>
+    </ul></div>
+  </div>
+  <div class="footer-bottom">© 2024 ModernBank. All rights reserved.</div>
+</footer>
+
+<script>
+// ── CONFIG: Point this to your running server ──
+const API = 'http://localhost:3000/api';
+
+const MB = (() => {
+  let current = JSON.parse(sessionStorage.getItem('mb_current')) || null;
+
+  const fmt = n => '$' + Number(n).toFixed(2).replace(/\d(?=(\d{3})+\.)/g,'$&,');
+  const $ = id => document.getElementById(id);
+
+  const toast = (msg, type='success') => {
+    const el = $('toast');
+    el.textContent = msg; el.className = `toast ${type} show`;
+    setTimeout(() => el.classList.remove('show'), 3200);
+  };
+
+  const setLoading = (btnId, loading) => {
+    const btn = $(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    if (loading) btn.dataset.orig = btn.textContent, btn.textContent = 'Please wait…';
+    else btn.textContent = btn.dataset.orig || btn.textContent;
+  };
+
+  const api = async (method, path, body) => {
+    const res = await fetch(API + path, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+    return data;
+  };
+
+  // ── NAV ──
+  function go(page) {
+    const guarded = ['dashboard','account','deposit','withdraw','transfer','transactions'];
+    if (!current && guarded.includes(page)) { openLogin(); toast('Please sign in first','error'); return; }
+
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    $(`page-${page}`).classList.add('active');
+    document.querySelectorAll('.nb-links a').forEach(a => a.classList.remove('active'));
+    const nl = $(`nl-${page}`); if (nl) nl.classList.add('active');
+
+    if (page === 'dashboard') loadDash();
+    if (page === 'account') loadAccount();
+    if (page === 'transactions') loadAllTx();
+    if (page === 'deposit') $('depBal').textContent = fmt(current.balance);
+    if (page === 'withdraw') $('withBal').textContent = fmt(current.balance);
+    if (page === 'transfer') $('tranBal').textContent = fmt(current.balance);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  // ── MODALS ──
+  function openLogin()  { closeModals(); $('modalLogin').classList.add('open'); }
+  function openSignup() { closeModals(); $('modalSignup').classList.add('open'); }
+  function closeModals() {
+    $('modalLogin').classList.remove('open');
+    $('modalSignup').classList.remove('open');
+    $('liErr').classList.remove('show');
+    $('suErr').classList.remove('show');
+  }
+
+  // ── AUTH ──
+  async function login() {
+    const email = $('liEmail').value.trim();
+    const pass  = $('liPass').value;
+    setLoading('liBtn', true);
+    try {
+      const { user } = await api('POST', '/login', { email, password: pass });
+      current = user;
+      sessionStorage.setItem('mb_current', JSON.stringify(current));
+      closeModals(); refreshNav();
+      toast(`Welcome back, ${user.name}!`);
+      go('dashboard');
+    } catch (e) {
+      $('liErr').textContent = e.message;
+      $('liErr').classList.add('show');
+    } finally { setLoading('liBtn', false); }
+  }
+
+  async function signup() {
+    const name  = $('suName').value.trim();
+    const email = $('suEmail').value.trim();
+    const pass  = $('suPass').value;
+    const conf  = $('suConf').value;
+    const err   = msg => { $('suErr').textContent = msg; $('suErr').classList.add('show'); };
+
+    if (!name || !email || !pass) { err('All fields are required.'); return; }
+    if (pass.length < 6) { err('Password must be at least 6 characters.'); return; }
+    if (pass !== conf)   { err('Passwords do not match.'); return; }
+
+    setLoading('suBtn', true);
+    try {
+      const { user } = await api('POST', '/signup', { name, email, password: pass });
+      current = user;
+      sessionStorage.setItem('mb_current', JSON.stringify(current));
+      closeModals(); refreshNav();
+      toast(`Welcome to ModernBank, ${name}!`);
+      go('dashboard');
+    } catch (e) { err(e.message); }
+    finally { setLoading('suBtn', false); }
+  }
+
+  function logout() {
+    current = null;
+    sessionStorage.removeItem('mb_current');
+    refreshNav();
+    toast("You've been signed out.");
+    go('home');
+  }
+
+  // ── NAV UI ──
+  function refreshNav() {
+    const authed = !!current;
+    $('nbAuth').style.display = authed ? 'none' : 'flex';
+    $('nbUser').style.display = authed ? 'flex' : 'none';
+    if (authed) $('nbUserName').textContent = current.name;
+    ['dashboard','account','transactions'].forEach(id => {
+      const el = $(`nl-${id}`);
+      if (el) el.style.display = authed ? 'block' : 'none';
+    });
+  }
+
+  // ── BANKING ──
+  async function deposit() {
+    const amt  = parseFloat($('depAmt').value);
+    const desc = $('depDesc').value.trim() || 'Deposit';
+    if (!amt || amt <= 0) { toast('Enter a valid amount.','error'); return; }
+    setLoading('depBtn', true);
+    try {
+      const { user } = await api('POST', '/deposit', { userId: current.id, amount: amt, description: desc });
+      current = user; sessionStorage.setItem('mb_current', JSON.stringify(current));
+      toast(`${fmt(amt)} deposited!`);
+      go('dashboard');
+    } catch (e) { toast(e.message,'error'); }
+    finally { setLoading('depBtn', false); }
+  }
+
+  async function withdraw() {
+    const amt  = parseFloat($('withAmt').value);
+    const desc = $('withDesc').value.trim() || 'Withdrawal';
+    if (!amt || amt <= 0) { toast('Enter a valid amount.','error'); return; }
+    setLoading('withBtn', true);
+    try {
+      const { user } = await api('POST', '/withdraw', { userId: current.id, amount: amt, description: desc });
+      current = user; sessionStorage.setItem('mb_current', JSON.stringify(current));
+      toast(`${fmt(amt)} withdrawn.`);
+      go('dashboard');
+    } catch (e) { toast(e.message,'error'); }
+    finally { setLoading('withBtn', false); }
+  }
+
+  async function transfer() {
+    const toAcc = $('tranTo').value.trim();
+    const amt   = parseFloat($('tranAmt').value);
+    const desc  = $('tranDesc').value.trim() || 'Transfer';
+    if (!amt || amt <= 0) { toast('Enter a valid amount.','error'); return; }
+    setLoading('tranBtn', true);
+    try {
+      const { user, recipientName } = await api('POST', '/transfer', { userId: current.id, toAccountNumber: toAcc, amount: amt, description: desc });
+      current = user; sessionStorage.setItem('mb_current', JSON.stringify(current));
+      toast(`${fmt(amt)} sent to ${recipientName}.`);
+      go('dashboard');
+    } catch (e) { toast(e.message,'error'); }
+    finally { setLoading('tranBtn', false); }
+  }
+
+  // ── TX RENDER ──
+  function renderTxItem(t) {
+    const cls  = t.type === 'credit' ? 'cr' : 'dr';
+    const sign = t.type === 'credit' ? '+' : '−';
+    return `<div class="tx-item">
+      <div class="tx-left">
+        <div class="tx-icon ${cls}">${t.type==='credit'?'💰':'💸'}</div>
+        <div><div class="tx-desc">${t.description}</div><div class="tx-date">${t.date}</div></div>
+      </div>
+      <div class="tx-amt ${cls}">${sign}${fmt(Math.abs(t.amount))}</div>
+    </div>`;
+  }
+
+  // ── VIEWS ──
+  async function loadDash() {
+    $('dWelcome').textContent = current.name;
+    $('dBalance').textContent = fmt(current.balance);
+    $('dMeta').innerHTML = `<strong>${current.accountNumber}</strong><br/>${current.ifsc}`;
+    $('dTxList').innerHTML = '<div class="tx-empty">Loading…</div>';
+    try {
+      const { transactions } = await api('GET', `/transactions/${current.id}`);
+      const recent = transactions.slice(0,5);
+      $('dTxList').innerHTML = recent.length ? recent.map(renderTxItem).join('') : '<div class="tx-empty">No transactions yet</div>';
+    } catch { $('dTxList').innerHTML = '<div class="tx-empty">Failed to load transactions.</div>'; }
+  }
+
+  function loadAccount() {
+    $('acName').textContent   = current.name;
+    $('acEmail').textContent  = current.email;
+    $('acNum').textContent    = current.accountNumber;
+    $('acIfsc').textContent   = current.ifsc;
+    $('acBal').textContent    = fmt(current.balance);
+    $('acJoined').textContent = current.joined;
+  }
+
+  async function loadAllTx() {
+    $('txAllList').innerHTML = '<div class="tx-empty">Loading…</div>';
+    try {
+      const { transactions } = await api('GET', `/transactions/${current.id}`);
+      $('txAllList').innerHTML = transactions.length ? transactions.map(renderTxItem).join('') : '<div class="tx-empty">No transactions yet</div>';
+    } catch { $('txAllList').innerHTML = '<div class="tx-empty">Failed to load transactions.</div>'; }
+  }
+
+  // ── STATS ANIMATION ──
+  function animateStats() {
+    [[1,'hs1','M+'],[50,'hs2','B+','$'],[150,'hs3','+']].forEach(([end,id,suffix,prefix='']) => {
+      let n=0; const step=Math.ceil(end/40);
+      const iv=setInterval(()=>{n=Math.min(n+step,end);$(id).textContent=prefix+n+suffix;if(n>=end)clearInterval(iv);},40);
+    });
+  }
+
+  // ── INIT ──
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => $('mb-loading').classList.add('hide'), 2000);
+    refreshNav();
+    const io = new IntersectionObserver(entries => { if(entries[0].isIntersecting){animateStats();io.disconnect();} });
+    const hs = document.querySelector('.hero-stats');
+    if (hs) io.observe(hs);
+    ['modalLogin','modalSignup'].forEach(id => {
+      $(id).addEventListener('click', e => { if(e.target===$(id)) closeModals(); });
+    });
+    document.addEventListener('keydown', e => { if(e.key==='Escape') closeModals(); });
+  });
+
+  return { go, openLogin, openSignup, closeModals, login, signup, logout, deposit, withdraw, transfer };
+})();
+</script>
+</body>
+</html>

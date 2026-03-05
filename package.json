@@ -1,0 +1,14 @@
+{
+  "name": "modernbank",
+  "version": "1.0.0",
+  "description": "ModernBank – MongoDB Atlas Edition",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "mongodb": "^6.3.0"
+  }
+}
