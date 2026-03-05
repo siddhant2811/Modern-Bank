@@ -1,6 +1,7 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
 const cors = require('cors');
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const path = require('path');
 
 const app = express();
