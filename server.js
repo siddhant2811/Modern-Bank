@@ -13,7 +13,10 @@ const MONGO_URI = 'mongodb+srv://spchalke2811_db_user:SPChalke2811@cluster0.8har
 const DB_NAME = 'modernbank';
 
 let db;
-MongoClient.connect(MONGO_URI)
+MongoClient.connect(MONGO_URI, {
+  tlsAllowInvalidCertificates: true,
+  tlsAllowInvalidHostnames: true
+})
   .then(client => {
     db = client.db(DB_NAME);
     console.log('✅ Connected to MongoDB Atlas');
